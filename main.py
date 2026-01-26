@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 
 load_dotenv()
 
@@ -20,8 +21,16 @@ def main():
 
     summary_template = '''
     Given the information about a person, I want you to create:
-    1. A short summary
+    1. A short summary about the person (1-2 sentences)
     2. Two interesting facts about the person
+
+    Format your response as follows:
+    SUMMARY:
+    <short summary>
+
+    FACTS:
+    - <interesting fact 1>
+    - <interesting fact 2>
     '''
 
     prompt = ChatPromptTemplate(
@@ -37,6 +46,12 @@ def main():
         max_retries=2,
         api_key=os.getenv("OPENAI_API_KEY"),
     )
+
+    # llm = ChatOllama(
+    #     model="gemma3:270m",
+    #     temperature=0,
+    #     max_retries=2,
+    # )
 
     chain = prompt | llm
 
