@@ -1,57 +1,36 @@
-from langchain_tavily import TavilySearch
+
 from langchain_openai import ChatOpenAI
-from langchain_classic.agents.react.agent import create_react_agent
-from langchain_classic.agents import AgentExecutor
-from langsmith import Client
-import os
-from langchain_openai import ChatOpenAI
-from langchain_classic.agents.react.agent import create_react_agent
 from langchain_tavily import TavilySearch
-from langchain_classic.agents import AgentExecutor
-from langchain_core.runnables import RunnableLambda
-from langchain_core.prompts import PromptTemplate
-from langsmith import Client
+from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from schemas import AgentResponse
-from prompt import REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 tools = [TavilySearch()]
-llm = ChatOpenAI(model="gpt-4-turbo", temperature=0)
-structured_llm = llm.with_structured_output(AgentResponse)
-client = Client()
-react_prompt = client.pull_prompt("hwchase17/react")
-react_prompt_with_format_instructions = PromptTemplate(
-    template=REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS,
-    input_variables=[
-        "tools",
-        "tool_names",
-        "format_instructions",
-        "input",
-        "agent_scratchpad",
-    ],
-).partial(format_instructions="")
+model = ChatOpenAI(model="gpt-4-turbo", temperature=0)
 
-agent = create_react_agent(
-    llm=llm,
+agent = create_agent(
+    model=model,
     tools=tools,
-    prompt=react_prompt_with_format_instructions,
+    response_format=ToolStrategy(AgentResponse),
 )
-
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-extract_ouput = RunnableLambda(lambda x: x['output'])
-chain = agent_executor | extract_ouput | structured_llm
 
 
 def main():
-    response = chain.invoke(
-        input={
-            "input": "Find 3 job listings for AI Engineers in Broward County, Florida and provide the details."
+    response = agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Search for 3 job listing for AI Engineers with Lanchain experience and provide the details.",
+                }
+            ]
         }
     )
-    print(response)
+    print(response["structured_response"])
 
 
 if __name__ == "__main__":
