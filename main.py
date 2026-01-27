@@ -7,7 +7,6 @@ import os
 from langchain_openai import ChatOpenAI
 from langchain_classic.agents.react.agent import create_react_agent
 from langchain_tavily import TavilySearch
-from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_classic.agents import AgentExecutor
 from langchain_core.runnables import RunnableLambda
 from langchain_core.prompts import PromptTemplate
@@ -21,8 +20,8 @@ load_dotenv()
 
 tools = [TavilySearch()]
 llm = ChatOpenAI(model="gpt-4-turbo", temperature=0)
+structured_llm = llm.with_structured_output(AgentResponse)
 client = Client()
-outputParser = PydanticOutputParser(pydantic_object=AgentResponse)
 react_prompt = client.pull_prompt("hwchase17/react")
 react_prompt_with_format_instructions = PromptTemplate(
     template=REACT_PROMPT_WITH_FORMAT_INSTRUCTIONS,
@@ -33,7 +32,7 @@ react_prompt_with_format_instructions = PromptTemplate(
         "input",
         "agent_scratchpad",
     ],
-).partial(format_instructions=outputParser.get_format_instructions())
+).partial(format_instructions="")
 
 agent = create_react_agent(
     llm=llm,
@@ -43,8 +42,7 @@ agent = create_react_agent(
 
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 extract_ouput = RunnableLambda(lambda x: x['output'])
-parse_output = RunnableLambda(lambda x: outputParser.parse(x))
-chain = agent_executor | extract_ouput | parse_output
+chain = agent_executor | extract_ouput | structured_llm
 
 
 def main():
